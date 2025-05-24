@@ -452,6 +452,8 @@ func evaluate(reverse_code_stack []*expr, x float32, y float32) color.RGBA {
 			value_stack = value_stack[1:]
 			break
 		case EXPR_KIND_MOD:
+			value_stack[len(value_stack)-2] = float32(math.Mod(float64(value_stack[len(value_stack)-1]), float64(value_stack[len(value_stack)-2])))
+			value_stack = value_stack[1:]
 			break
 		case EXPR_KIND_POW:
 			break

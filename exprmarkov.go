@@ -8,10 +8,10 @@ type weighted_expr struct {
 }
 
 var terminal_kinds = []weighted_expr{
-	{EXPR_KIND_VAR_X, 0.4},
-	{EXPR_KIND_VAR_Y, 0.4},
-	{EXPR_KIND_SPECIAL_CONSTANT, 0.15},
-	{EXPR_KIND_NUMBER, 0.05},
+	{EXPR_KIND_VAR_X, 0.25},
+	{EXPR_KIND_VAR_Y, 0.25},
+	{EXPR_KIND_SPECIAL_CONSTANT, 0.2},
+	{EXPR_KIND_NUMBER, 0.3},
 }
 
 var single_kinds = []weighted_expr{
@@ -20,12 +20,15 @@ var single_kinds = []weighted_expr{
 }
 
 var binop_kinds = []weighted_expr{
-	{EXPR_KIND_ADD, 0.2},
-	{EXPR_KIND_SUB, 0.2},
+	{EXPR_KIND_ADD, 0.1},
+	{EXPR_KIND_SUB, 0.1},
 	{EXPR_KIND_MULT, 0.2},
 	{EXPR_KIND_DIV, 0.2},
-	{EXPR_KIND_GRATER, 0.1},
-	{EXPR_KIND_LESS, 0.1},
+	{EXPR_KIND_MOD, 0.2},
+	{EXPR_KIND_GRATER, 0.05},
+	{EXPR_KIND_GRATEREQ, 0.05},
+	{EXPR_KIND_LESS, 0.05},
+	{EXPR_KIND_LESSEQ, 0.05},
 }
 
 var ternary_kinds = []weighted_expr{
@@ -49,8 +52,8 @@ type category_weight struct {
 }
 
 var category_weights = []category_weight{
-	{CATEGORY_TERMINAL, 0.3},
-	{CATEGORY_SINGLE, 0.4},
+	{CATEGORY_TERMINAL, 0.2},
+	{CATEGORY_SINGLE, 0.50},
 	{CATEGORY_BINOP, 0.15},
 	{CATEGORY_TERNARY, 0.15},
 }
@@ -129,10 +132,16 @@ func generate_expr(depth int) *expr {
 			return mult(arg1, arg2)
 		case EXPR_KIND_DIV:
 			return div(arg1, arg2)
+		case EXPR_KIND_MOD:
+			return less(arg1, arg2)
 		case EXPR_KIND_GRATER:
 			return grater(arg1, arg2)
 		case EXPR_KIND_LESS:
 			return less(arg1, arg2)
+		case EXPR_KIND_GRATEREQ:
+			return gratereq(arg1, arg2)
+		case EXPR_KIND_LESSEQ:
+			return lesseq(arg1, arg2)
 		default:
 			panic("unknown binop kind")
 		}
