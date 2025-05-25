@@ -7,6 +7,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"strings"
 )
 
 type EXPR_KIND int
@@ -188,11 +189,8 @@ func create_expr_terminal(kind EXPR_KIND) expr {
 	case EXPR_KIND_VAR_Y:
 		break
 	case EXPR_KIND_NUMBER:
-		// value = rand.Float32()
 		break
 	case EXPR_KIND_SPECIAL_CONSTANT:
-		// constants := [...]float32{math.Pi, math.SqrtPi, math.E, math.Log10E, math.Phi, 0.5, 1, 2, 10}
-		// value = constants[rand.Intn(len(constants))]
 		break
 	}
 
@@ -529,6 +527,35 @@ func evaluate(reverse_code_stack []*expr, x float32, y float32) color.RGBA {
 	return color.RGBA{0xA0, 0x20, 0xF0, 0xff} // my err color
 }
 
+func print_ast(e *expr, indent int) {
+	fmt.Printf("%*s", indent*2, "")
+	id := strings.ToLower(expr_kind_to_str(e.kind))
+	if len(id) > 10 {
+		id = id[10:]
+	}
+	fmt.Printf("%s", id)
+	if is_terminal(*e) {
+		if e.terminal_expr.value != 0 {
+			fmt.Printf(":%f", e.terminal_expr.value)
+		}
+		fmt.Println()
+		return
+	}
+	fmt.Printf(" (\n")
+	if is_single(*e) {
+		print_ast(e.single_expr.arg1, indent+1)
+	} else if is_binop(*e) {
+		print_ast(e.binop_expr.arg1, indent+1)
+		print_ast(e.binop_expr.arg2, indent+1)
+	} else if is_ternary(*e) {
+		print_ast(e.ternary_expr.arg1, indent+1)
+		print_ast(e.ternary_expr.arg2, indent+1)
+		print_ast(e.ternary_expr.arg3, indent+1)
+	}
+
+	fmt.Printf("%*s)\n", indent*2, "")
+}
+
 func run(root *expr) []*expr {
 	stack := []*expr{}
 	stack = expr_stack(stack, root)
@@ -598,7 +625,8 @@ func test_uv() *expr {
 }
 
 func test_random() *expr {
-	e := generate_expr_root(20)
+	e := generate_expr_root(8)
+	print_ast(e, 0)
 	return e
 }
 

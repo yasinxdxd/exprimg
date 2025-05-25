@@ -1,6 +1,9 @@
 package main
 
-import "math/rand"
+import (
+	"math"
+	"math/rand"
+)
 
 type weighted_expr struct {
 	kind EXPR_KIND
@@ -97,7 +100,9 @@ func generate_expr(depth int) *expr {
 		case EXPR_KIND_NUMBER:
 			return number(rand.Float32())
 		case EXPR_KIND_SPECIAL_CONSTANT:
-			return special_constant(3.14)
+			constants := [...]float32{math.Pi, math.SqrtPi, math.E, math.Log10E, math.Phi, 0.5, 1, 2, 10}
+			value := constants[rand.Intn(len(constants))]
+			return special_constant(value)
 		default:
 			panic("unknown terminal kind")
 		}
