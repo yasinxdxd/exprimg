@@ -2,8 +2,8 @@
 
 I saw this ``validation.pdf`` one of the [Tsoding Daily](https://www.youtube.com/@TsodingDaily)'s videos and just want to implement it in Golang.
 
-**Example Image**
-![1748166714446](image/README/1748166714446.png)
+**Example Image**\
+![1748166714446](image/README/1748166714446.png)\
 **Generated AST**
 
 ```c
