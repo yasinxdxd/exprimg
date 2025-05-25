@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/gif"
 	"image/png"
 	"math"
 	"os"
@@ -20,6 +21,7 @@ const (
 	EXPR_KIND_SPECIAL_CONSTANT // terminal
 	EXPR_KIND_VAR_X            // terminal
 	EXPR_KIND_VAR_Y            // terminal
+	EXPR_KIND_VAR_T            // terminal
 	TERMINAL_END
 
 	SINGLE_BEGIN
@@ -67,6 +69,8 @@ func expr_kind_to_str(kind EXPR_KIND) string {
 		return "EXPR_KIND_VAR_X"
 	case EXPR_KIND_VAR_Y:
 		return "EXPR_KIND_VAR_Y"
+	case EXPR_KIND_VAR_T:
+		return "EXPR_KIND_VAR_T"
 	case EXPR_KIND_SIN:
 		return "EXPR_KIND_SIN"
 	case EXPR_KIND_COS:
@@ -177,7 +181,7 @@ func expr_valid(kind EXPR_KIND, valid_kinds ...EXPR_KIND) bool {
 }
 
 func create_expr_terminal(kind EXPR_KIND) expr {
-	if !expr_valid(kind, EXPR_KIND_VAR_X, EXPR_KIND_VAR_Y, EXPR_KIND_NUMBER, EXPR_KIND_SPECIAL_CONSTANT) {
+	if !expr_valid(kind, EXPR_KIND_VAR_X, EXPR_KIND_VAR_Y, EXPR_KIND_VAR_T, EXPR_KIND_NUMBER, EXPR_KIND_SPECIAL_CONSTANT) {
 		err := fmt.Errorf("%d is not a valid kind for create_expr_terminal()", kind)
 		fmt.Println(err.Error())
 		return expr{kind: EXPR_KIND_INVALID}
@@ -187,6 +191,8 @@ func create_expr_terminal(kind EXPR_KIND) expr {
 	case EXPR_KIND_VAR_X:
 		break
 	case EXPR_KIND_VAR_Y:
+		break
+	case EXPR_KIND_VAR_T:
 		break
 	case EXPR_KIND_NUMBER:
 		break
@@ -399,7 +405,7 @@ func expr_stack(stack []*expr, root *expr) []*expr {
 
 }
 
-func evaluate(reverse_code_stack []*expr, x float32, y float32) color.RGBA {
+func evaluate(reverse_code_stack []*expr, x float32, y float32, t float32) color.RGBA {
 
 	value_stack := []float32{}
 
@@ -417,6 +423,9 @@ func evaluate(reverse_code_stack []*expr, x float32, y float32) color.RGBA {
 			break
 		case EXPR_KIND_VAR_Y:
 			value_stack = append(value_stack, y)
+			break
+		case EXPR_KIND_VAR_T:
+			value_stack = append(value_stack, t)
 			break
 
 		// single:
@@ -535,9 +544,7 @@ func print_ast(e *expr, indent int) {
 	}
 	fmt.Printf("%s", id)
 	if is_terminal(*e) {
-		if e.terminal_expr.value != 0 {
-			fmt.Printf(":%f", e.terminal_expr.value)
-		}
+		fmt.Printf(":%f", e.terminal_expr.value)
 		fmt.Println()
 		return
 	}
@@ -574,12 +581,11 @@ func gen_image(width int, height int, function func() *expr) {
 
 	stack := run(function())
 
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			dx := float32(x) / float32(width)
 			dy := float32(y) / float32(height)
-
-			c := evaluate(stack, dx, dy)
+			c := evaluate(stack, dx, dy, 0)
 			img.Set(x, y, c)
 		}
 	}
@@ -587,6 +593,91 @@ func gen_image(width int, height int, function func() *expr) {
 	// encode as png.
 	f, _ := os.Create("image.png")
 	png.Encode(f, img)
+}
+
+// paletteForImage creates a 256-color palette from an RGBA image.
+func paletteForImage(img *image.RGBA) color.Palette {
+	// Collect unique colors (up to 256)
+	colors := make(map[color.Color]bool)
+	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
+		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+			colors[img.At(x, y)] = true
+			if len(colors) >= 256 {
+				break
+			}
+		}
+		if len(colors) >= 256 {
+			break
+		}
+	}
+
+	// Convert map to color.Palette
+	palette := make(color.Palette, 0, len(colors))
+	for c := range colors {
+		palette = append(palette, c)
+	}
+
+	// If palette is empty, add a default color
+	if len(palette) == 0 {
+		palette = append(palette, color.Black)
+	}
+
+	return palette
+}
+
+func gen_gif(width, height int, tStart, tEnd float32, numFrames int, function func() *expr) {
+	// Initialize GIF structure
+	g := &gif.GIF{
+		Image:     make([]*image.Paletted, numFrames),
+		Delay:     make([]int, numFrames),
+		LoopCount: 0, // Loop forever
+	}
+
+	// Generate frames
+	stack := run(function())
+	dt := (tEnd - tStart) / float32(numFrames)
+	for frame := 0; frame < numFrames; frame++ {
+		// Create image for this frame
+		upLeft := image.Point{0, 0}
+		lowRight := image.Point{width, height}
+		img := image.NewRGBA(image.Rectangle{upLeft, lowRight})
+
+		// Compute t for this frame
+		t := tStart + float32(frame)*dt
+
+		// Evaluate function for each pixel
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				dx := float32(x) / float32(width)
+				dy := float32(y) / float32(height)
+				c := evaluate(stack, dx, dy, t) // Pass t to evaluate
+				img.Set(x, y, c)
+			}
+		}
+
+		// Convert RGBA to Paletted for GIF (256 colors max)
+		paletted := image.NewPaletted(img.Bounds(), paletteForImage(img))
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				paletted.Set(x, y, img.At(x, y))
+			}
+		}
+
+		// Add frame to GIF
+		g.Image[frame] = paletted
+		g.Delay[frame] = 10 // Delay in 100ths of a second (e.g., 10 = 0.1s)
+	}
+
+	// Encode and save GIF
+	f, err := os.Create("animation.gif")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	err = gif.EncodeAll(f, g)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func test_code() *expr {
@@ -612,6 +703,7 @@ func test_code2() *expr {
 		),
 		number(0),
 	)
+	print_ast(e, 0)
 	return e
 }
 
@@ -625,7 +717,7 @@ func test_uv() *expr {
 }
 
 func test_random() *expr {
-	e := generate_expr_root(8)
+	e := generate_expr_root(16)
 	print_ast(e, 0)
 	return e
 }
@@ -635,6 +727,7 @@ func main() {
 	height := 400
 
 	gen_image(width, height, test_random)
+	gen_gif(width, height, 0.0, 5.0, 20, test_random)
 	// gen_image(width, height, test_code2)
 
 }

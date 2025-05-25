@@ -10,6 +10,11 @@ func vary() *expr {
 	return &res
 }
 
+func vart() *expr {
+	res := create_expr_terminal(EXPR_KIND_VAR_T)
+	return &res
+}
+
 func number(val float32) *expr {
 	res := create_expr_terminal(EXPR_KIND_NUMBER)
 	res.terminal_expr.value = val
